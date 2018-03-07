@@ -1,23 +1,44 @@
 <?php
 
-# Client for pwnedpasswords.com & LastPass
+# Client for pwnedpasswords.com & also for parsing LastPass exports
 # David Ritchie, 2018
 # Some license guff or other goes here
 
-$file = $argv[1];
-$client = new PwnedPasswordClient($file);
-$client->check_passwords();
+$arg = $argv[1];
 
-class PwnedPasswordClient
+if(file_exists($arg))
+{
+    $client = new LastPassPasswordChecker($file);
+    $client->check_passwords($file);
+}
+
+else
+{
+    $client = new PwnedPasswordClient();
+    $count = $client->check_password($arg);
+    if(!$count)
+    {
+        echo 'Password is unique!';
+    }
+    else{
+        echo sprintf('Password has %d hits', $count);
+    }
+
+    echo PHP_EOL;
+}
+
+class LastPassPasswordChecker
 {
     private $file = NULL;
-    private $cache = [];
-    private $credentials = [];
+    private $credentials = NULL;
+    private $ppclient = NULL;
 
     function __construct($file)
     {
         $this->file = $file;
         $this->read_credentials();
+
+        $this->ppclient = new PwnedPasswordClient();
     }
 
     # Read the CSV one line at a time and populate an array of arrays of column names to values
@@ -31,6 +52,31 @@ class PwnedPasswordClient
             $this->credentials[] = (array_combine($names, $data));
         }
     }
+
+    # For each credential, query PP and display a message
+    function check_passwords($file)
+    {
+        foreach($this->credentials as $credential)
+        {
+            $count = $this->ppclient->check_password($credential['password']);
+
+            if($count)
+            {
+                echo sprintf('Password for "%s" used %d times ❌' . PHP_EOL, $credential['name'], $count);
+            }
+            else
+            {
+                echo sprintf('Password for "%s" is unique. ✅' . PHP_EOL, $credential['name']);
+            }
+        }
+    }
+}
+
+class PwnedPasswordClient
+{
+    private $cache = [];
+
+    function __construct() {}
 
     # Connect to PP and get the password count for the submitted password.
     # Cache the returned passwords & counts for the sake of speed.
@@ -64,29 +110,8 @@ class PwnedPasswordClient
         return false;
     }
 
-    # For each credential, query PP and display a message
-    function check_passwords()
+    function check_password($password)
     {
-        foreach($this->credentials as $credential)
-        {
-            $count = $this->check_password_count($credential['password']);
-
-            if($count)
-            {
-                echo sprintf('Password for "%s" used %d times ❌' . PHP_EOL, $credential['name'], $count);
-            }
-            else
-            {
-                echo sprintf('Password for "%s" is unique. ✅' . PHP_EOL, $credential['name']);
-            }
-        }
+        return $this->check_password_count($password);
     }
 }
-
-
-
-
-
-
-
-
