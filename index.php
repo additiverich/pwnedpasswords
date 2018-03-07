@@ -20,17 +20,20 @@ class PwnedPasswordClient
         $this->read_credentials();
     }
 
+    # Read the CSV one line at a time and populate an array of arrays of column names to values
     private function read_credentials()
     {
         $this->credentials = [];
         $handle = fopen($this->file, "r");
 
-        $names = fgetcsv($handle);
+        $names = fgetcsv($handle); // Assume the first line is a header
         while (($data = fgetcsv($handle)) !== FALSE) {
             $this->credentials[] = (array_combine($names, $data));
         }
     }
 
+    # Connect to PP and get the password count for the submitted password.
+    # Cache the returned passwords & counts for the sake of speed.
     private function check_password_count($password)
     {
         $hash = strtoupper(sha1($password));
@@ -61,6 +64,7 @@ class PwnedPasswordClient
         return false;
     }
 
+    # For each credential, query PP and display a message
     function check_passwords()
     {
         foreach($this->credentials as $credential)
@@ -73,7 +77,7 @@ class PwnedPasswordClient
             }
             else
             {
-                echo sprintf('Password %s is unique. ✅' . PHP_EOL, $credential['name']);
+                echo sprintf('Password for "%s" is unique. ✅' . PHP_EOL, $credential['name']);
             }
         }
     }
